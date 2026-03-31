@@ -12,7 +12,7 @@ Hybrid Sparse–Dense Job Search Engine (BM25 + Embeddings)
 ---
 
 # Hybrid Job Search Engine (Information Retrieval Project)
-This project implements a **hybrid sparse–dense search engine** for job retrieval, developed as part of the ECS736P Information Retrieval module.
+This project implements a hybrid sparse–dense search engine for job retrieval, developed as part of the ECS736P Information Retrieval module.
 
 The system retrieves and ranks job postings based on user queries by combining:
 - **Lexical matching (BM25F)**
@@ -41,43 +41,51 @@ The system retrieves and ranks job postings based on user queries by combining:
 ## System Architecture
 
   User Query
+  
        ↓ 
-{BM25} + {Dense Retrieval}
-       ↓     
-  Score Fusion
+       
+BM25 + Dense Retrieval
+
        ↓
+       
+  Score Fusion
+  
+       ↓     
+
 Ranked Job Results
 
 ---
 
 ## Project Structure
 
-project/
-│
-├── data/ # Dataset (job postings)
-├── src/ # Core retrieval system
-├── notebooks/ # Experiments & testing
-├── evaluation/ # Metrics and evaluation
-├── demo/ # Demo scripts
-├── requirements.txt
-└── README.md
+- data/ # Dataset (job postings)
+- src/ # Core retrieval system
+- notebooks/ # Experiments & testing
+- evaluation/ # Metrics and evaluation
+- demo/ # Demo scripts
+- requirements.txt
+- README.md
 
 ---
 
 ## Installation
 
 1. Clone repository:
-git clone https://github.com/oscar5198/job-search-engine-IR.git
-cd job-search-engine-ir
 
-2. Clone repository:
-pip install -r requirements.txt
+      - git clone https://github.com/oscar5198/job-search-engine-IR.git
+
+      - cd job-search-engine-ir
+
+2. Install Dependencies:
+   
+      - pip install -r requirements.txt
 
 ---
 
 ## Usage
 Run the search engine:
-python src/search.py
+
+ - python src/search.py
 
 ---
 
