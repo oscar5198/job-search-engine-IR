@@ -1,5 +1,6 @@
 import os
 import sys
+import pandas as pd
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 _src_dir = os.path.join(_this_dir, "src")
@@ -9,16 +10,12 @@ for _path in [_this_dir, _src_dir]:
 
 from hybrid import HybridSearchEngine
 
-
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "1. data", "job_dataset.csv")
-
 DEFAULT_ALPHA = 0.5
-
 DEFAULT_TOP_K = 10
 
-
-def print_results(results, query: str) -> None:
-    """Pretty-print ranked search results to stdout."""
+def print_results(results: pd.DataFrame, query: str) -> None:
+    """Pretty-print ranked search results — only HybridScore, same as hybrid.py."""
     print(f"\n{'='*60}")
     print(f"Query: \"{query}\"")
     print(f"{'='*60}")
@@ -28,17 +25,17 @@ def print_results(results, query: str) -> None:
         return
 
     for _, row in results.iterrows():
-        print(f"\n  Rank #{int(row['Rank'])}")
-        print(f"  JobID    : {row['JobID']}")
-        print(f"  Title    : {row['Title']}")
-        print(f"  Skills   : {str(row['Skills'])[:120]}")
-        print(f"  Keywords : {str(row['Keywords'])[:100]}")
-        print(f"  Scores   → BM25: {row['BM25Score']:.4f} | "
-              f"Dense: {row['DenseScore']:.4f} | "
-              f"Hybrid: {row['HybridScore']:.4f}")
-        print(f"  {'-'*56}")
-
-    print()
+        print(f"\nRank #{int(row['Rank'])}")
+        print(f"Title: {row['Title']}")
+        print(f"Experience Level: {row['ExperienceLevel']}")
+        print(f"Skills: {row['Skills']}")
+        resp_preview = str(row['Responsibilities'])
+        if len(resp_preview) > 200:
+            resp_preview = resp_preview[:200] + "..."
+        print(f"Responsibilities: {resp_preview}")
+        print(f"Keywords: {row['Keywords']}")
+        print(f"Hybrid Score: {row['HybridScore']:.4f}")
+    print(flush=True)
 
 def run_interactive(engine: HybridSearchEngine) -> None:
     print("\nHybrid Job Search Engine — Interactive Mode")
@@ -46,10 +43,9 @@ def run_interactive(engine: HybridSearchEngine) -> None:
     print("Commands: 'alpha <0-1>' to change weight | 'exit' to quit\n")
 
     last_query = ""
-
     while True:
         try:
-            user_input = input("Search > ").strip()
+            user_input = input("Search Job: ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nExiting.")
             break
@@ -77,33 +73,12 @@ def run_interactive(engine: HybridSearchEngine) -> None:
                     print("  Invalid alpha value. Usage: alpha 0.6")
             continue
 
-        # BM25 term explanation
-        if user_input.lower().startswith("explain "):
-            parts = user_input.split()
-            if len(parts) == 2 and last_query:
-                try:
-                    doc_id = int(parts[1])
-                    explanation = engine.explain(last_query, doc_id)
-                    print(f"\n  BM25 explanation for doc_id={doc_id}, query='{last_query}'")
-                    print(f"  Total BM25 score: {explanation['total_score']}")
-                    for detail in explanation["details"]:
-                        print(f"    term='{detail['term']}' | tf={detail['tf']} "
-                              f"| idf={detail['idf']} | contribution={detail['term_score']}")
-                    print()
-                except ValueError:
-                    print("  Usage: explain <doc_id>  (integer index)")
-            else:
-                print("  Run a search first, then: explain <doc_id>")
-            continue
-
-        # Standard search
         last_query = user_input
         try:
-            results = engine.search(user_input, top_k=DEFAULT_TOP_K)
+            results = engine.search(user_input)
             print_results(results, user_input)
         except Exception as exc:
             print(f"  Error during search: {exc}")
-
 
 def main() -> None:
     # Allow overriding data path via environment variable
@@ -116,14 +91,11 @@ def main() -> None:
     engine = HybridSearchEngine(
         data_path=data_path,
         alpha=alpha,
-        bm25_top_k=50,
-        dense_top_k=50,
-        model_name="all-MiniLM-L6-v2",
+        top_k=DEFAULT_TOP_K
     )
 
     engine.build_index()
     run_interactive(engine)
-
 
 if __name__ == "__main__":
     main()
