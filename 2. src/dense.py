@@ -1,9 +1,11 @@
+import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from preprocessing import load_dataset, preprocess_document_for_dense
 
-DATA_PATH = "../1. data/job_dataset.csv"
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(_this_dir, "..", "1. data", "job_dataset.csv")
 MODEL_NAME = "all-MiniLM-L6-v2"
 TOP_K = 15  # show first 15 jobs
 
