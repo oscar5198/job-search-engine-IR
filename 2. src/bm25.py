@@ -7,7 +7,6 @@ from preprocessing import preprocess_corpus_for_bm25, preprocess_query, load_dat
 dataset_path = os.path.join(os.path.dirname(__file__), "../1. data/job_dataset.csv")
 
 class BM25Retriever:
-    # BM25 for the job search engine
 
     def __init__(self, documents, field_weights=None, k1=1.5, b=0.75):
         # each document should  be tokenised in preprocessing.py

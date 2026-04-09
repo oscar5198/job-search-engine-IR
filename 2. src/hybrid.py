@@ -12,7 +12,7 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 TOP_K = 15  # top results to show
 ALPHA = 0.5  # BM25 vs Dense weight
 
-# ------------------ Score fusion ------------------ #
+# Score fusion
 def _normalise_scores(score_dict: dict[int, float]) -> dict[int, float]:
     if not score_dict:
         return {}
@@ -31,7 +31,7 @@ def fuse_scores(bm25_results, dense_results, alpha=ALPHA, top_k=TOP_K):
     ranked = sorted(fused.items(), key=lambda x: x[1], reverse=True)
     return ranked[:top_k]
 
-# ------------------ Hybrid Search Engine ------------------ #
+# Hybrid Search Engine
 class HybridSearchEngine:
     def __init__(self, data_path=DATA_PATH, alpha=ALPHA, top_k=TOP_K):
         self.data_path = data_path
@@ -96,7 +96,7 @@ class HybridSearchEngine:
             })
         return pd.DataFrame(rows)
 
-# ------------------ Printing ------------------ #
+# Printing
 def print_hybrid_results(results: pd.DataFrame):
     print("\nTop matching jobs (Hybrid):\n", flush=True)
     for rank, row in enumerate(results.itertuples(index=False), start=1):
@@ -112,7 +112,7 @@ def print_hybrid_results(results: pd.DataFrame):
         print(f"   Hybrid Score: {row.HybridScore:.4f}", flush=True)
     print(flush=True)
 
-# ------------------ Interactive ------------------ #
+# Interactive
 def interactive_search():
     engine = HybridSearchEngine(data_path=DATA_PATH, alpha=ALPHA, top_k=TOP_K)
     engine.build_index()

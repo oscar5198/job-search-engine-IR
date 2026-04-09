@@ -81,7 +81,6 @@ def run_interactive(engine: HybridSearchEngine) -> None:
             print(f"  Error during search: {exc}")
 
 def main() -> None:
-    # Allow overriding data path via environment variable
     data_path = os.environ.get("JOB_DATA_PATH", DATA_PATH)
     alpha = float(os.environ.get("HYBRID_ALPHA", DEFAULT_ALPHA))
 
