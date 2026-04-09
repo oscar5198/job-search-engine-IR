@@ -1,0 +1,10 @@
+# macOS junk files
+.DS_Store
+
+# Python cache / bytecode
+__pycache__/
+*.pyc
+
+# Optional editor files
+*.swp
+*.save
