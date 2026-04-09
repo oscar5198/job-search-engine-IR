@@ -7,11 +7,9 @@ DATA_PATH = "1. data/job_dataset.csv"
 MODEL_NAME = "all-MiniLM-L6-v2"
 TOP_K = 5
 
-
+# Load dataset containing job postings
 def load_dataset(path: str = DATA_PATH) -> pd.DataFrame:
-    """
-    Load the job dataset and create a single text field for dense retrieval.
-    """
+
     df = pd.read_csv(path)
 
     required_columns = ["JobID", "Title", "Skills", "Responsibilities", "Keywords"]
@@ -20,6 +18,7 @@ def load_dataset(path: str = DATA_PATH) -> pd.DataFrame:
     if missing_columns:
         raise ValueError(f"Missing required columns in dataset: {missing_columns}")
 
+# Merge relevant fields into one text representation per job
     df["text"] = (
         df["Title"].fillna("").astype(str) + " "
         + df["Skills"].fillna("").astype(str) + " "
@@ -31,18 +30,18 @@ def load_dataset(path: str = DATA_PATH) -> pd.DataFrame:
 
 
 def load_embedding_model(model_name: str = MODEL_NAME) -> SentenceTransformer:
-    """
-    Load the sentence-transformer model used for dense retrieval.
-    """
+    
+ # Load the sentence-transformer model used for dense retrieval.
+    
     return SentenceTransformer(model_name)
 
 
 def build_job_embeddings(
     df: pd.DataFrame, model: SentenceTransformer
 ):
-    """
-    Encode all jobs into dense embeddings.
-    """
+    
+# Encode all jobs into dense embeddings.
+    
     return model.encode(df["text"].tolist(), show_progress_bar=True)
 
 
@@ -53,10 +52,10 @@ def search_jobs(
     job_embeddings,
     top_k: int = TOP_K,
 ) -> pd.DataFrame:
-    """
-    Search for the most relevant jobs for a given query using cosine similarity.
-    Returns a DataFrame with the top-k results.
-    """
+    
+# Search for the most relevant jobs for a given query using cosine similarity.
+# Returns a DataFrame with the top-k results.
+    
     query = query.strip()
 
     if not query:
@@ -75,9 +74,9 @@ def search_jobs(
 
 
 def print_results(results: pd.DataFrame) -> None:
-    """
-    Print search results in a clear format for demo/testing.
-    """
+    
+    #Print search results in a clear format for demo/testing.
+    
     print("\nTop matching jobs:\n")
 
     for _, row in results.iterrows():
@@ -96,9 +95,9 @@ def print_results(results: pd.DataFrame) -> None:
 
 
 def interactive_search() -> None:
-    """
-    Run the dense retrieval system in interactive mode.
-    """
+    
+ # Run the dense retrieval system in interactive mode.
+    
     print("Loading dataset...")
     df = load_dataset()
 
