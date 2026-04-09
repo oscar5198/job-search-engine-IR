@@ -62,7 +62,6 @@ Ranked Job Results
 - src/ # Core retrieval system
 - notebooks/ # Experiments & testing
 - evaluation/ # Metrics and evaluation
-- demo/ # Demo scripts
 - requirements.txt
 - README.md
 
