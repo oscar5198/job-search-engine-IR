@@ -1,157 +1,84 @@
-from __future__ import annotations
+import os
+import pandas as pd
+from bm25 import BM25Retriever
+from dense import load_embedding_model, build_job_embeddings, search_jobs_dense
+from preprocessing import load_dataset, preprocess_corpus_for_bm25, preprocess_query
 
 import numpy as np
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
 
-from bm25 import BM25Retriever
-from dense import load_embedding_model, build_job_embeddings, search_jobs as dense_search_jobs
-from preprocessing import (
-    load_dataset,
-    preprocess_corpus_for_bm25,
-    preprocess_query,
-)
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(_this_dir, "..", "1. data", "job_dataset.csv")
+MODEL_NAME = "all-MiniLM-L6-v2"
+TOP_K = 15  # top results to show
+ALPHA = 0.5  # BM25 vs Dense weight
 
+# Score fusion
 def _normalise_scores(score_dict: dict[int, float]) -> dict[int, float]:
-
     if not score_dict:
         return {}
-
     values = np.array(list(score_dict.values()), dtype=float)
     min_v, max_v = values.min(), values.max()
-
     if max_v == min_v:
         return {doc_id: 1.0 for doc_id in score_dict}
+    return {doc_id: float((score - min_v) / (max_v - min_v)) for doc_id, score in score_dict.items()}
 
-    return {
-        doc_id: float((score - min_v) / (max_v - min_v))
-        for doc_id, score in score_dict.items()
-    }
-
-
-def fuse_scores(
-    bm25_results: list[tuple[int, float]],
-    dense_results: list[tuple[int, float]],
-    alpha: float = 0.5,
-    top_k: int = 10,
-) -> list[tuple[int, float]]:
-
-    if not 0.0 <= alpha <= 1.0:
-        raise ValueError(f"alpha must be in [0, 1], got {alpha}")
-
-    # Step 1 – convert to dicts
-    bm25_dict = dict(bm25_results)
-    dense_dict = dict(dense_results)
-
-    # Step 2 – normalise
-    bm25_norm = _normalise_scores(bm25_dict)
-    dense_norm = _normalise_scores(dense_dict)
-
-    # Step 3 – union of all candidate doc_ids
+def fuse_scores(bm25_results, dense_results, alpha=ALPHA, top_k=TOP_K):
+    bm25_norm = _normalise_scores(dict(bm25_results))
+    dense_norm = _normalise_scores(dict(dense_results))
     all_doc_ids = set(bm25_norm.keys()) | set(dense_norm.keys())
-
-    # Step 4 – hybrid score
-    fused = {}
-    for doc_id in all_doc_ids:
-        b_score = bm25_norm.get(doc_id, 0.0)
-        d_score = dense_norm.get(doc_id, 0.0)
-        fused[doc_id] = alpha * b_score + (1 - alpha) * d_score
-
-    # Step 5 – sort and trim
+    fused = {doc_id: alpha * bm25_norm.get(doc_id, 0.0) + (1 - alpha) * dense_norm.get(doc_id, 0.0)
+             for doc_id in all_doc_ids}
     ranked = sorted(fused.items(), key=lambda x: x[1], reverse=True)
     return ranked[:top_k]
 
-
+# Hybrid Search Engine
 class HybridSearchEngine:
-
-    def __init__(
-        self,
-        data_path: str = "1. data/job_dataset.csv",
-        alpha: float = 0.5,
-        bm25_top_k: int = 50,
-        dense_top_k: int = 50,
-        model_name: str = "all-MiniLM-L6-v2",
-    ):
+    def __init__(self, data_path=DATA_PATH, alpha=ALPHA, top_k=TOP_K):
         self.data_path = data_path
         self.alpha = alpha
-        self.bm25_top_k = bm25_top_k
-        self.dense_top_k = dense_top_k
-        self.model_name = model_name
-
-        # Set by build_index()
-        self.df: pd.DataFrame | None = None
-        self.bm25_retriever: BM25Retriever | None = None
+        self.top_k = top_k
+        self.df = None
+        self.bm25 = None
         self.dense_model = None
         self.job_embeddings = None
         self._indexed = False
 
-
-    def build_index(self) -> None:
-        print("[1/4] Loading dataset …")
+    def build_index(self):
+        print("Loading dataset...", flush=True)
         self.df = load_dataset(self.data_path)
+        print(f"Dataset loaded: {len(self.df)} jobs\n", flush=True)
 
-        # Build the combined "text" field required by build_job_embeddings in dense.py
-        self.df["text"] = (
-            self.df["Title"].fillna("").astype(str) + " "
-            + self.df["Skills"].fillna("").astype(str) + " "
-            + self.df["Responsibilities"].fillna("").astype(str) + " "
-            + self.df["Keywords"].fillna("").astype(str)
-        ).str.strip()
-
-        print("[2/4] Preprocessing corpus for BM25 …")
+        print("Preprocessing corpus for BM25 …", flush=True)
         bm25_corpus = preprocess_corpus_for_bm25(self.df)
-        self.bm25_retriever = BM25Retriever(documents=bm25_corpus)
+        self.bm25 = BM25Retriever(bm25_corpus)
 
-        print("[3/4] Loading sentence-transformer model …")
-        self.dense_model = load_embedding_model(self.model_name)
+        print("Loading dense model …", flush=True)
+        self.dense_model = load_embedding_model(MODEL_NAME)
 
-        print("[4/4] Encoding job postings into dense embeddings …")
+        print("Encoding jobs into dense embeddings …", flush=True)
         self.job_embeddings = build_job_embeddings(self.df, self.dense_model)
 
         self._indexed = True
-        print(f"Index built. {len(self.df)} job postings indexed.\n")
+        print("Hybrid retrieval system ready.\n", flush=True)
 
-    def search(
-        self,
-        query: str,
-        alpha: float | None = None,
-        top_k: int = 10,
-    ) -> pd.DataFrame:
+    def search(self, query: str):
         if not self._indexed:
             raise RuntimeError("Index not built. Call build_index() first.")
-
-        if not isinstance(query, str) or not query.strip():
-            raise ValueError("Query must be a non-empty string.")
-
-        effective_alpha = alpha if alpha is not None else self.alpha
-
-        # --- Query preprocessing ---
+        # --- BM25 ---
         bm25_tokens, dense_text = preprocess_query(query)
+        bm25_raw = self.bm25.search(bm25_tokens, top_k=self.top_k)
 
-        # --- Sparse retrieval ---
-        bm25_raw = self.bm25_retriever.search(bm25_tokens, top_k=self.bm25_top_k)
+        # --- Dense ---
+        dense_df = search_jobs_dense(dense_text, self.df, self.dense_model, self.job_embeddings, top_k=self.top_k)
+        dense_raw = [(int(self.df[self.df["JobID"] == row["JobID"]].index[0]), float(row["DenseScore"])) 
+                     for _, row in dense_df.iterrows()]
 
-        # --- Dense retrieval ---
-        dense_df = dense_search_jobs(
-            query=dense_text,
-            df=self.df,
-            model=self.dense_model,
-            job_embeddings=self.job_embeddings,
-            top_k=self.dense_top_k,
-        )
-        # convert dense results to (doc_id, score) tuples aligned with DataFrame index
-        dense_raw = [
-            (int(self.df[self.df["JobID"] == row["JobID"]].index[0]), float(row["SimilarityScore"]))
-            for _, row in dense_df.iterrows()
-        ]
-
-        # --- Score fusion ---
-        fused = fuse_scores(bm25_raw, dense_raw, alpha=effective_alpha, top_k=top_k)
+        # --- Fusion ---
+        fused = fuse_scores(bm25_raw, dense_raw, alpha=self.alpha, top_k=self.top_k)
 
         # --- Build result DataFrame ---
-        bm25_score_map = dict(bm25_raw)
-        dense_score_map = dict(dense_raw)
-
+        bm25_map = dict(bm25_raw)
+        dense_map = dict(dense_raw)
         rows = []
         for rank, (doc_id, hybrid_score) in enumerate(fused, start=1):
             job = self.df.iloc[doc_id]
@@ -159,17 +86,48 @@ class HybridSearchEngine:
                 "Rank": rank,
                 "JobID": job["JobID"],
                 "Title": job["Title"],
+                "ExperienceLevel": job["ExperienceLevel"],
                 "Skills": job["Skills"],
+                "Responsibilities": job["Responsibilities"],
                 "Keywords": job["Keywords"],
-                "BM25Score": round(bm25_score_map.get(doc_id, 0.0), 4),
-                "DenseScore": round(dense_score_map.get(doc_id, 0.0), 4),
                 "HybridScore": round(hybrid_score, 4),
+                "BM25Score": round(bm25_map.get(doc_id, 0.0), 4),
+                "DenseScore": round(dense_map.get(doc_id, 0.0), 4),
             })
-
         return pd.DataFrame(rows)
 
-    def explain(self, query: str, doc_id: int) -> dict:
-        if not self._indexed:
-            raise RuntimeError("Index not built. Call build_index() first.")
-        bm25_tokens, _ = preprocess_query(query)
-        return self.bm25_retriever.explain_score(bm25_tokens, doc_id)
+# Printing
+def print_hybrid_results(results: pd.DataFrame):
+    print("\nTop matching jobs (Hybrid):\n", flush=True)
+    for rank, row in enumerate(results.itertuples(index=False), start=1):
+        print("-----", flush=True)
+        print(f"{rank}. Title: {row.Title}", flush=True)
+        print(f"   Experience Level: {row.ExperienceLevel}", flush=True)
+        print(f"   Skills: {row.Skills}", flush=True)
+        resp_preview = str(row.Responsibilities)[:200]
+        if len(str(row.Responsibilities)) > 200:
+            resp_preview += "..."
+        print(f"   Responsibilities: {resp_preview}", flush=True)
+        print(f"   Keywords: {row.Keywords}", flush=True)
+        print(f"   Hybrid Score: {row.HybridScore:.4f}", flush=True)
+    print(flush=True)
+
+# Interactive
+def interactive_search():
+    engine = HybridSearchEngine(data_path=DATA_PATH, alpha=ALPHA, top_k=TOP_K)
+    engine.build_index()
+    print("Type a query to search for jobs.")
+    print("Type 'exit' to stop.\n")
+    while True:
+        query = input("Enter your job search query: ").strip()
+        if query.lower() == "exit":
+            print("Exiting search.", flush=True)
+            break
+        if not query:
+            print("Please enter a valid query.\n", flush=True)
+            continue
+        results = engine.search(query)
+        print_hybrid_results(results)
+
+if __name__ == "__main__":
+    interactive_search()

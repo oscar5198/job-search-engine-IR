@@ -1,133 +1,73 @@
+import os
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from preprocessing import load_dataset, preprocess_document_for_dense
 
-
-DATA_PATH = "1. data/job_dataset.csv"
+_this_dir = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(_this_dir, "..", "1. data", "job_dataset.csv")
 MODEL_NAME = "all-MiniLM-L6-v2"
-TOP_K = 5
-
-# Load dataset containing job postings
-def load_dataset(path: str = DATA_PATH) -> pd.DataFrame:
-
-    df = pd.read_csv(path)
-
-    required_columns = ["JobID", "Title", "Skills", "Responsibilities", "Keywords"]
-    missing_columns = [col for col in required_columns if col not in df.columns]
-
-    if missing_columns:
-        raise ValueError(f"Missing required columns in dataset: {missing_columns}")
-
-# Merge relevant fields into one text representation per job
-    df["text"] = (
-        df["Title"].fillna("").astype(str) + " "
-        + df["Skills"].fillna("").astype(str) + " "
-        + df["Responsibilities"].fillna("").astype(str) + " "
-        + df["Keywords"].fillna("").astype(str)
-    ).str.strip()
-
-    return df
-
+TOP_K = 15  # show first 15 jobs
 
 def load_embedding_model(model_name: str = MODEL_NAME) -> SentenceTransformer:
-    
- # Load the sentence-transformer model used for dense retrieval.
-    
-    return SentenceTransformer(model_name)
+    print("Loading sentence-transformer model...", flush=True)
+    model = SentenceTransformer(model_name)
+    print("Model loaded.\n", flush=True)
+    return model
 
+def build_job_embeddings(df: pd.DataFrame, model: SentenceTransformer):
+    print("Encoding job descriptions into embeddings...", flush=True)
+    texts = [preprocess_document_for_dense(row) for _, row in df.iterrows()]
+    embeddings = model.encode(texts, show_progress_bar=True)
+    print(f"Embeddings created. Shape: {embeddings.shape}\n", flush=True)
+    return embeddings
 
-def build_job_embeddings(
-    df: pd.DataFrame, model: SentenceTransformer
-):
-    
-# Encode all jobs into dense embeddings.
-    
-    return model.encode(df["text"].tolist(), show_progress_bar=True)
-
-
-def search_jobs(
-    query: str,
-    df: pd.DataFrame,
-    model: SentenceTransformer,
-    job_embeddings,
-    top_k: int = TOP_K,
-) -> pd.DataFrame:
-    
-# Search for the most relevant jobs for a given query using cosine similarity.
-# Returns a DataFrame with the top-k results.
-    
-    query = query.strip()
-
-    if not query:
-        raise ValueError("Query cannot be empty.")
-
+def search_jobs_dense(query: str, df: pd.DataFrame, model, job_embeddings, top_k: int = TOP_K) -> pd.DataFrame:
     query_embedding = model.encode([query])
     scores = cosine_similarity(query_embedding, job_embeddings)[0]
-
     results = df.copy()
-    results["SimilarityScore"] = scores
-    results = results.sort_values(by="SimilarityScore", ascending=False).head(top_k)
+    results["DenseScore"] = scores
+    results = results.sort_values(by="DenseScore", ascending=False).head(top_k)
+    return results
 
-    return results[
-        ["JobID", "Title", "Skills", "Keywords", "Responsibilities", "SimilarityScore"]
-    ]
-
-
-def print_results(results: pd.DataFrame) -> None:
-    
-    #Print search results in a clear format for demo/testing.
-    
-    print("\nTop matching jobs:\n")
-
-    for _, row in results.iterrows():
-        print("-----")
-        print(f"JobID: {row['JobID']}")
-        print(f"Title: {row['Title']}")
-        print(f"Similarity Score: {row['SimilarityScore']:.4f}")
-        print(f"Skills: {row['Skills']}")
-        print(f"Keywords: {row['Keywords']}")
-
-        responsibilities_preview = str(row["Responsibilities"])[:200]
-        if len(str(row["Responsibilities"])) > 200:
+def print_results(results: pd.DataFrame):
+    print("\nTop matching jobs:\n", flush=True)
+    for rank, row in enumerate(results.itertuples(index=False), start=1):
+        print("-----", flush=True)
+        print(f"{rank}. Title: {row.Title}", flush=True)
+        print(f"   Experience Level: {row.ExperienceLevel}", flush=True)
+        print(f"   Skills: {row.Skills}", flush=True)
+        responsibilities_preview = str(row.Responsibilities)[:200]
+        if len(str(row.Responsibilities)) > 200:
             responsibilities_preview += "..."
-        print(f"Responsibilities: {responsibilities_preview}")
-    print()
+        print(f"   Responsibilities: {responsibilities_preview}", flush=True)
+        print(f"   Keywords: {row.Keywords}", flush=True)
+        print(f"   Dense Score: {row.DenseScore:.4f}", flush=True)
+    print(flush=True)
 
+def interactive_search():
+    print("Loading dataset...", flush=True)
+    df = load_dataset(DATA_PATH)
+    print(f"Dataset loaded: {len(df)} jobs\n", flush=True)
 
-def interactive_search() -> None:
-    
- # Run the dense retrieval system in interactive mode.
-    
-    print("Loading dataset...")
-    df = load_dataset()
-
-    print("Loading embedding model...")
     model = load_embedding_model()
-
-    print("Encoding job descriptions...")
     job_embeddings = build_job_embeddings(df, model)
 
-    print("\nDense retrieval system ready.")
-    print("Type a query to search for jobs.")
-    print("Type 'exit' to stop.\n")
+    print("Dense retrieval system ready.", flush=True)
+    print("Type a query to search for jobs.", flush=True)
+    print("Type 'exit' to stop.\n", flush=True)
 
     while True:
         query = input("Enter your job search query: ").strip()
-
         if query.lower() == "exit":
-            print("Exiting search.")
+            print("Exiting search.", flush=True)
             break
-
         if not query:
-            print("Please enter a valid query.\n")
+            print("Please enter a valid query.\n", flush=True)
             continue
 
-        try:
-            results = search_jobs(query, df, model, job_embeddings, top_k=TOP_K)
-            print_results(results)
-        except Exception as e:
-            print(f"Error: {e}\n")
-
+        results = search_jobs_dense(query, df, model, job_embeddings, top_k=TOP_K)
+        print_results(results)
 
 if __name__ == "__main__":
     interactive_search()
