@@ -60,7 +60,6 @@ Ranked Job Results
 
 - data/ # Dataset (job postings)
 - src/ # Core retrieval system
-- notebooks/ # Experiments & testing
 - evaluation/ # Metrics and evaluation
 - requirements.txt
 - README.md
@@ -82,9 +81,14 @@ Ranked Job Results
 ---
 
 ## Usage
-Run the search engine:
 
+### Run Interactive Search Engine
  - python src/search.py
+
+### Evaluate All Models
+Run this after modifying BM25, dense retrieval, or hybrid fusion to assess performance:
+
+ - python evaluation/evaluate_all_models.py
 
 ---
 
