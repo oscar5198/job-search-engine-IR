@@ -10,7 +10,7 @@ for _path in [_this_dir, _src_dir]:
 
 from hybrid import HybridSearchEngine
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "1. data", "job_dataset.csv")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "job_dataset.csv")
 DEFAULT_ALPHA = 0.5
 DEFAULT_TOP_K = 10
 
@@ -26,6 +26,7 @@ def print_results(results: pd.DataFrame, query: str) -> None:
 
     for _, row in results.iterrows():
         print(f"\nRank #{int(row['Rank'])}")
+        print(f"JobID: {row['JobID']}")
         print(f"Title: {row['Title']}")
         print(f"Experience Level: {row['ExperienceLevel']}")
         print(f"Skills: {row['Skills']}")

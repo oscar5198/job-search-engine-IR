@@ -6,8 +6,8 @@ from sklearn.metrics import ndcg_score
 
 # Ensure local src folder is in Python path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
-SRC_PATH = os.path.join(PROJECT_ROOT, "2. src")
-EVAL_PATH = os.path.join(PROJECT_ROOT, "4. evaluation")
+SRC_PATH = os.path.join(PROJECT_ROOT, "src")
+EVAL_PATH = os.path.join(PROJECT_ROOT, "evaluation")
 sys.path.insert(0, SRC_PATH)
 sys.path.insert(0, EVAL_PATH)
 
@@ -18,8 +18,8 @@ from dense import load_embedding_model, build_job_embeddings, search_jobs_dense
 from relevance_judgments import load_qrels
 
 # Paths to data
-DATA_PATH = os.path.join(PROJECT_ROOT, "1. data", "job_dataset.csv")
-QRELS_PATH = os.path.join(PROJECT_ROOT, "4. evaluation", "qrels_pool.csv")
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "job_dataset.csv")
+QRELS_PATH = os.path.join(PROJECT_ROOT, "evaluation", "qrels_pool.csv")
 
 # Load dataset
 df = load_dataset(DATA_PATH)
@@ -44,7 +44,7 @@ if "JobID" not in qrels_df.columns and "Title" in qrels_df.columns:
 qrels_df["JobID"] = qrels_df["JobID"].astype(str).str.strip().str.lower()
 
 # Save temporary CSV for compatibility with load_qrels()
-temp_qrels_path = os.path.join(PROJECT_ROOT, "4. evaluation", "qrels_pool_temp.csv")
+temp_qrels_path = os.path.join(PROJECT_ROOT, "evaluation", "qrels_pool_temp.csv")
 qrels_df.to_csv(temp_qrels_path, index=False)
 qrels = load_qrels(temp_qrels_path)
 

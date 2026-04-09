@@ -5,7 +5,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from preprocessing import load_dataset, preprocess_document_for_dense
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(_this_dir, "..", "1. data", "job_dataset.csv")
+DATA_PATH = os.path.join(_this_dir, "..", "data", "job_dataset.csv")
 MODEL_NAME = "all-MiniLM-L6-v2"
 TOP_K = 15  # show first 15 jobs
 

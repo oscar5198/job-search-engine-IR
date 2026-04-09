@@ -5,7 +5,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # Project paths
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
-SRC_PATH = os.path.join(PROJECT_ROOT, "2. src")
+SRC_PATH = os.path.join(PROJECT_ROOT, "src")
 if SRC_PATH not in sys.path:
     sys.path.insert(0, SRC_PATH)
 
@@ -16,7 +16,7 @@ from dense import load_embedding_model, build_job_embeddings, search_jobs_dense
 from queries import queries
 
 # Load dataset
-DATA_PATH = os.path.join(PROJECT_ROOT, "1. data", "job_dataset.csv")
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "job_dataset.csv")
 df = load_dataset(DATA_PATH)
 corpus = preprocess_corpus_for_bm25(df)
 

@@ -7,7 +7,7 @@ from preprocessing import load_dataset, preprocess_corpus_for_bm25, preprocess_q
 import numpy as np
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(_this_dir, "..", "1. data", "job_dataset.csv")
+DATA_PATH = os.path.join(_this_dir, "..", "data", "job_dataset.csv")
 MODEL_NAME = "all-MiniLM-L6-v2"
 TOP_K = 15  # top results to show
 ALPHA = 0.5  # BM25 vs Dense weight
